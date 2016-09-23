@@ -37,14 +37,13 @@
 int maketoken(int type, int which);
 int install_id();
 int install_fnum();
-int yywrap();
 
 int install_num();
 int install_str();
-int install_coma();
-int install_comb();
+void install_coma();
+void install_comb();
 
-
+int yywrap();
 
 /* If the lex yytext buffer turns out to be too small to hold comments,
    add the following lines:
@@ -63,12 +62,13 @@ ws       {delim}+
 letter   [A-Za-z]
 digit    [0-9]
 id       {letter}({letter}|{digit})*
-fnumber  {digit}+(\.{digit}+)?(E[+\-]?{digit}+)?
+number   {digit}+($|{ws}|;)
+fnumber  {digit}+(\.{digit}+)?((E|e)[+\-]?{digit}+)?
 
 string   ('([^']|(''))*')
-number {digit}+   /* + or * ? */
-comment-a "{"
-comment-b "(*"
+
+commenta "{"
+commentb "(*"
 
 %%
 
@@ -78,15 +78,6 @@ then      {return(maketoken(RESERVED, THEN));}
 else      {return(maketoken(RESERVED, ELSE));}
 begin     {return(maketoken(RESERVED, BEGINBEGIN));}
 end       {return(maketoken(RESERVED, END));}
-
-{id}      {return(install_id());}
-{fnumber} {return(install_fnum());}
-
-{string}  {return (install_str());}
-{number}  {return(install_num());}
-{comment-a} {return(install_coma());}
-{comment-b} {return(install_comb());}
-
 
 "<"       {return(maketoken(OPERATOR, LT));}
 "<="      {return(maketoken(OPERATOR, LE));}
@@ -101,9 +92,6 @@ end       {return(maketoken(RESERVED, END));}
 "-"       {return(maketoken(OPERATOR, MINUS));}
 "*"       {return(maketoken(OPERATOR, TIMES));}
 "/"       {return(maketoken(OPERATOR, DIVIDE));}
-":="      {return(maketoken(OPERATOR, ASSIGN));}
-"="       {return(maketoken(OPERATOR, EQ));}
-"<>"      {return(maketoken(OPERATOR, NE));}
 "^"       {return(maketoken(OPERATOR, POINT));}
 
 ".."      {return(maketoken(DELIMITER, DOTDOT));}
@@ -123,18 +111,14 @@ mod       {return(maketoken(OPERATOR, MOD));}
 in        {return(maketoken(OPERATOR, IN));}
 
 array       {return(maketoken(RESERVED, ARRAY));}
-begin       {return(maketoken(RESERVED, BEGINBEGIN));}
 case        {return (maketoken(RESERVED, CASE));}
 const       {return (maketoken(RESERVED, CONST));}
 do          {return (maketoken(RESERVED, DO));}
 downto      {return (maketoken(RESERVED, DOWNTO));}
-else        {return (maketoken(RESERVED, ELSE));}
-end         {return (maketoken(RESERVED, END));}
 file        {return (maketoken(RESERVED, FILEFILE));}
 for         {return (maketoken(RESERVED, FOR));}
 function    {return (maketoken(RESERVED, FUNCTION));} 
 goto        {return (maketoken(RESERVED, GOTO));}
-if          {return (maketoken(RESERVED, IF));}
 label       {return (maketoken(RESERVED, LABEL));}
 nil         {return (maketoken(RESERVED, NIL));}
 of          {return (maketoken(RESERVED, OF));}
@@ -144,13 +128,20 @@ program     {return (maketoken(RESERVED, PROGRAM));}
 record      {return (maketoken(RESERVED, RECORD));} 
 repeat      {return (maketoken(RESERVED, REPEAT));} 
 set         {return (maketoken(RESERVED, SET));}
-then        {return (maketoken(RESERVED, THEN));}
 to          {return (maketoken(RESERVED, TO));}
 type        {return (maketoken(RESERVED, TYPE));}
 until       {return (maketoken(RESERVED, UNTIL));}
 var         {return (maketoken(RESERVED, VAR));}
 while       {return (maketoken(RESERVED, WHILE));}
 with        {return (maketoken(RESERVED, WITH));}
+
+{id}      {return(install_id());}
+{number}  {return(install_num());}
+{fnumber} {return(install_fnum());}
+
+{string}  {return (install_str());}
+{commenta}  {(install_coma());}
+{commentb}  {(install_comb());}
 
 %%
 
@@ -201,8 +192,6 @@ int install_fnum() {  /* Note -- you may use sscanf for this assignment. */
   return(NUMBER);
  }
 
-int yywrap() {  return(1);  }       /* lex may need this. */
-
 int install_num()
 { 
   int n;
@@ -216,47 +205,43 @@ int install_num()
 }
 int install_str()
 { 
-  yylval = talloc();
+  int len, n = 0;
+  yylval = (TOKEN) talloc();
   yylval->tokentype = STRINGTOK;
 
-  int c, i, len, stop, counter;
   len = yyleng;
+  if( len > 17)
+    len = 17;
 
-  i = 1;
-  counter = 0;
-  
-  while (i < len && counter < 15) {
-    c = yytext[i];
-    yylval->stringval[counter] = c;
-
-    if ((char) c == '\'') {
+  for (int i = 0; i < len-1; i++)
+  {
+    if (yytext[i+1] == '\'' && (i+1) != 1)
+    {
+      n++;
       i++;
     }
-    i++;
-    counter++;
+    int x = yytext[i+1];
+    yylval->stringval[i-n] = x;
   }
+  yylval->stringval[len-1-n] = '\0';    //terminate
+  return(STRING);
+}
+void install_coma()   
+{
+  int n = 0;
+  while (n != '}')
+    n = input();
+}
+void install_comb()   
+{
+  int a, b = 0;
+  a = input();
+  b = input();
+  while( a != '*' || b != ')' )
+  {
+    a = b;
+    b = input();
+  }
+}
 
-  if (len >= 17) {
-    yylval->stringval[counter] = '\0';
-  }
-  else if (len <= 0) {
-    yylval->stringval[0] = '\0';
-  }
-  else {
-    yylval->stringval[counter - 1] = '\0';
-  }
-  
-  return STRING;
-}
-int install_coma()    /*  {  */
-{
-  int n = 0;
-  while (n != '}')
-    c = input();
-}
-int install_comb()    /*  (*  */
-{
-  int n = 0;
-  while (n != '}')
-    c = input();
-}
+int yywrap() {  return(1);  }       /* lex may need this. */
