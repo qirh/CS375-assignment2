@@ -39,6 +39,13 @@ int install_id();
 int install_fnum();
 int yywrap();
 
+int install_num();
+int install_str();
+int install_coma();
+int install_comb();
+
+
+
 /* If the lex yytext buffer turns out to be too small to hold comments,
    add the following lines:
  #undef YYLMAX
@@ -58,6 +65,11 @@ digit    [0-9]
 id       {letter}({letter}|{digit})*
 fnumber  {digit}+(\.{digit}+)?(E[+\-]?{digit}+)?
 
+string   ('([^']|(''))*')
+number {digit}+   /* + or * ? */
+comment-a "{"
+comment-b "(*"
+
 %%
 
 {ws}      { /* no action and no return */ }
@@ -66,8 +78,16 @@ then      {return(maketoken(RESERVED, THEN));}
 else      {return(maketoken(RESERVED, ELSE));}
 begin     {return(maketoken(RESERVED, BEGINBEGIN));}
 end       {return(maketoken(RESERVED, END));}
+
 {id}      {return(install_id());}
 {fnumber} {return(install_fnum());}
+
+{string}  {return (install_str());}
+{number}  {return(install_num());}
+{comment-a} {return(install_coma());}
+{comment-b} {return(install_comb());}
+
+
 "<"       {return(maketoken(OPERATOR, LT));}
 "<="      {return(maketoken(OPERATOR, LE));}
 "="       {return(maketoken(OPERATOR, EQ));}
@@ -76,7 +96,61 @@ end       {return(maketoken(RESERVED, END));}
 ">="      {return(maketoken(OPERATOR, GE));}
 ":="      {return(maketoken(OPERATOR, ASSIGN));}
 "."       {return(maketoken(OPERATOR, DOT));}
+
+"+"       {return(maketoken(OPERATOR, PLUS));}
+"-"       {return(maketoken(OPERATOR, MINUS));}
+"*"       {return(maketoken(OPERATOR, TIMES));}
+"/"       {return(maketoken(OPERATOR, DIVIDE));}
+":="      {return(maketoken(OPERATOR, ASSIGN));}
+"="       {return(maketoken(OPERATOR, EQ));}
+"<>"      {return(maketoken(OPERATOR, NE));}
+"^"       {return(maketoken(OPERATOR, POINT));}
+
+".."      {return(maketoken(DELIMITER, DOTDOT));}
 ";"       {return(maketoken(DELIMITER, SEMICOLON));}
+","       {return(maketoken(DELIMITER, COMMA));}
+":"       {return(maketoken(DELIMITER, COLON));}
+"("       {return(maketoken(DELIMITER, LPAREN));}
+")"       {return(maketoken(DELIMITER, RPAREN));}
+"["       {return(maketoken(DELIMITER, LBRACKET));}
+"]"       {return(maketoken(DELIMITER, RBRACKET));}
+
+and       {return(maketoken(OPERATOR, AND));}
+or        {return(maketoken(OPERATOR, OR));}
+not       {return(maketoken(OPERATOR, NOT));}
+div       {return(maketoken(OPERATOR, DIV));}
+mod       {return(maketoken(OPERATOR, MOD));}
+in        {return(maketoken(OPERATOR, IN));}
+
+array       {return(maketoken(RESERVED, ARRAY));}
+begin       {return(maketoken(RESERVED, BEGINBEGIN));}
+case        {return (maketoken(RESERVED, CASE));}
+const       {return (maketoken(RESERVED, CONST));}
+do          {return (maketoken(RESERVED, DO));}
+downto      {return (maketoken(RESERVED, DOWNTO));}
+else        {return (maketoken(RESERVED, ELSE));}
+end         {return (maketoken(RESERVED, END));}
+file        {return (maketoken(RESERVED, FILEFILE));}
+for         {return (maketoken(RESERVED, FOR));}
+function    {return (maketoken(RESERVED, FUNCTION));} 
+goto        {return (maketoken(RESERVED, GOTO));}
+if          {return (maketoken(RESERVED, IF));}
+label       {return (maketoken(RESERVED, LABEL));}
+nil         {return (maketoken(RESERVED, NIL));}
+of          {return (maketoken(RESERVED, OF));}
+packed      {return (maketoken(RESERVED, PACKED));} 
+procedure   {return (maketoken(RESERVED, PROCEDURE));}  
+program     {return (maketoken(RESERVED, PROGRAM));}
+record      {return (maketoken(RESERVED, RECORD));} 
+repeat      {return (maketoken(RESERVED, REPEAT));} 
+set         {return (maketoken(RESERVED, SET));}
+then        {return (maketoken(RESERVED, THEN));}
+to          {return (maketoken(RESERVED, TO));}
+type        {return (maketoken(RESERVED, TYPE));}
+until       {return (maketoken(RESERVED, UNTIL));}
+var         {return (maketoken(RESERVED, VAR));}
+while       {return (maketoken(RESERVED, WHILE));}
+with        {return (maketoken(RESERVED, WITH));}
 
 %%
 
@@ -128,3 +202,61 @@ int install_fnum() {  /* Note -- you may use sscanf for this assignment. */
  }
 
 int yywrap() {  return(1);  }       /* lex may need this. */
+
+int install_num()
+{ 
+  int n;
+  yylval = (TOKEN) talloc();
+  yylval->tokentype = NUMBERTOK;
+  yylval->datatype = INTEGER;
+
+  sscanf(yytext, "%d", &n);
+  yylval->intval = n;
+  return(NUMBER);
+}
+int install_str()
+{ 
+  yylval = talloc();
+  yylval->tokentype = STRINGTOK;
+
+  int c, i, len, stop, counter;
+  len = yyleng;
+
+  i = 1;
+  counter = 0;
+  
+  while (i < len && counter < 15) {
+    c = yytext[i];
+    yylval->stringval[counter] = c;
+
+    if ((char) c == '\'') {
+      i++;
+    }
+    i++;
+    counter++;
+  }
+
+  if (len >= 17) {
+    yylval->stringval[counter] = '\0';
+  }
+  else if (len <= 0) {
+    yylval->stringval[0] = '\0';
+  }
+  else {
+    yylval->stringval[counter - 1] = '\0';
+  }
+  
+  return STRING;
+}
+int install_coma()    /*  {  */
+{
+  int n = 0;
+  while (n != '}')
+    c = input();
+}
+int install_comb()    /*  (*  */
+{
+  int n = 0;
+  while (n != '}')
+    c = input();
+}
